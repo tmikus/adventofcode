@@ -44,6 +44,30 @@ fn simple_solution() {
     println!("position * depth = {}", horizontal_position * depth);
 }
 
+fn complex_solution() {
+    let mut horizontal_position = 0;
+    let mut depth = 0;
+    let mut aim = 0;
+    let stdin = io::stdin();
+    let mut lines = stdin.lock().lines();
+    for line in lines {
+        let operation = parse_operation(line.unwrap());
+        match operation {
+            Operation::Down(value) => aim += value,
+            Operation::Up(value) => aim -= value,
+            Operation::Backward(value) => {
+                horizontal_position -= value;
+                depth -= aim * value;
+            },
+            Operation::Forward(value) => {
+                horizontal_position += value;
+                depth += aim * value;
+            },
+        }
+    }
+    println!("position * depth = {}", horizontal_position * depth);
+}
+
 fn main() {
-    simple_solution();
+    complex_solution();
 }
