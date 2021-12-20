@@ -2,29 +2,43 @@ use std::io;
 use std::io::prelude::*;
 use std::io::{Error, Lines, StdinLock};
 
-fn parse_fish_age(line: String) -> Vec<u8> {
-    line.split(',').map(|value| value.parse::<u8>().unwrap()).collect()
+fn count_fish(generations: [u64; 9]) -> u64 {
+    let mut total_count = 0;
+    for count in generations {
+        total_count += count;
+    }
+    total_count
 }
 
-fn update_fish(fish: Vec<u8>) -> Vec<u8> {
-    let mut next_gen_fish = vec![];
-    for current in fish {
-        if current == 0 {
-            next_gen_fish.push(6); // Current
-            next_gen_fish.push(8); // New
+fn parse_generations(line: String) -> [u64; 9] {
+    let mut generations = [0; 9];
+    let ages: Vec<usize> = line.split(',').map(|value| value.parse().unwrap()).collect();
+    for age in ages {
+        generations[age] += 1;
+    }
+    generations
+}
+
+fn update_fish(generations: [u64; 9]) -> [u64; 9] {
+    let mut next_generations = [0; 9];
+    for (age, count) in generations.iter().enumerate() {
+        if age == 0 {
+            next_generations[6] = *count;
+            next_generations[8] = *count;
         } else {
-            next_gen_fish.push(current - 1);
+            next_generations[age - 1] += count;
         }
     }
-    next_gen_fish
+    next_generations
 }
 
 fn main() {
     let stdin = io::stdin();
     let mut lines = stdin.lock().lines();
-    let mut fish_age = parse_fish_age(lines.next().unwrap().unwrap());
-    for _ in 0..80 {
+    let mut fish_age = parse_generations(lines.next().unwrap().unwrap());
+    for day in 0..256 {
+        println!("Computing day {}...", day);
         fish_age = update_fish(fish_age);
     }
-    println!("Fish count: {}", fish_age.len());
+    println!("Fish count: {}", count_fish(fish_age));
 }
