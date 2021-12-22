@@ -80,14 +80,18 @@ impl Graph {
 
 fn find_unique_paths_in_graph(graph: &Graph) -> Vec<Vec<u8>> {
     let node = Weak::upgrade(&graph.start_node).unwrap();
-    find_path(node, vec![])
+    find_path(node, vec![], false)
 }
 
 fn find_path(
     node: Rc<RefCell<Node>>,
     mut visited_nodes: Vec<u8>,
+    mut has_visited_small_twice: bool,
 ) -> Vec<Vec<u8>> {
     let node_ref = (*node).borrow();
+    if !node_ref.is_large && !node_ref.is_start && visited_nodes.contains(&node_ref.id) {
+        has_visited_small_twice = true;
+    }
     visited_nodes.push(node_ref.id);
     if node_ref.is_end {
         return vec![visited_nodes];
@@ -97,11 +101,20 @@ fn find_path(
         let child = Weak::upgrade(child_weak).unwrap();
         {
             let child_ref = (*child).borrow();
-            if !child_ref.is_large && visited_nodes.contains(&child_ref.id) {
+            if child_ref.is_start {
+                continue;
+            }
+            if !child_ref.is_large
+            && has_visited_small_twice
+            && visited_nodes.contains(&child_ref.id) {
                 continue;
             }
         }
-        let mut child_results = find_path(child, visited_nodes.clone());
+        let mut child_results = find_path(
+            child,
+            visited_nodes.clone(),
+            has_visited_small_twice,
+        );
         results.append(&mut child_results);
     }
     results
