@@ -1,80 +1,99 @@
+use std::collections::HashMap;
+use std::fmt::format;
 use std::io;
 use std::io::prelude::*;
 use std::io::{Error, Lines, StdinLock};
 
 struct InsertionRule {
-    left: u8,
-    right: u8,
-    value: u8,
+    from: String,
+    to_left: String,
+    to_right: String,
 }
 
 impl InsertionRule {
     fn parse(value: &str) -> InsertionRule {
         let mut parts = value.split(" -> ");
-        let from = parts.next().unwrap().as_bytes();
-        let to = parts.next().unwrap().as_bytes();
+        let from: Vec<char> = parts.next().unwrap().chars().collect();
+        let to: Vec<char> = parts.next().unwrap().chars().collect();
         InsertionRule {
-            left: from[0],
-            right: from[1],
-            value: to[0],
+            from: format!("{}{}", from[0], from[1]),
+            to_left: format!("{}{}", from[0], to[0]),
+            to_right: format!("{}{}", to[0], from[1]),
         }
     }
 }
 
-fn find_rule(left: u8, right: u8, rules: &Vec<InsertionRule>) -> Option<&InsertionRule> {
+fn find_rule<'a>(pattern: &str, rules: &'a Vec<InsertionRule>) -> &'a InsertionRule {
     for rule in rules {
-        if rule.left == left && rule.right == right {
-            return Some(rule);
+        if rule.from == pattern {
+            return rule;
         }
     }
-    None
+    &rules[0]
 }
 
-fn get_item_index(items: &mut Vec<u8>, item_to_find: u8) -> usize {
-    for (index, item) in items.iter().enumerate() {
-        if *item == item_to_find {
-            return index;
-        }
-    }
-    let index = items.len();
-    items.push(item_to_find);
-    index
-}
-
-fn get_result(pattern: Vec<u8>) -> u64 {
-    let mut items = vec![];
-    let mut counts = vec![];
-    for item in pattern {
-        let index = get_item_index(&mut items, item);
-        if index == counts.len() {
-            counts.push(1)
+fn get_result(patterns: HashMap<String, u64>, last_char: char) -> u64 {
+    let mut letter_counts = HashMap::new();
+    for (pattern, count) in &patterns {
+        let pattern: Vec<char> = pattern.chars().collect();
+        let left = pattern[0];
+        if let Some(existing_count) = letter_counts.get_mut(&left) {
+            *existing_count += *count;
         } else {
-            counts[index] += 1;
+            letter_counts.insert(left, *count);
         }
     }
-    let largest = counts.iter().max().unwrap();
-    let smallest = counts.iter().min().unwrap();
-    largest - smallest
+    if let Some(existing_count) = letter_counts.get_mut(&last_char) {
+        *existing_count += 1;
+    } else {
+        letter_counts.insert(last_char, 1);
+    }
+    let highest = letter_counts.values().max().unwrap();
+    let smallest = letter_counts.values().min().unwrap();
+    highest - smallest
 }
 
-fn run_iteration(pattern: Vec<u8>, rules: &Vec<InsertionRule>) -> Vec<u8> {
-    let mut result = vec![pattern[0]];
-    for i in 1..pattern.len() {
-        let left = pattern[i - 1];
-        let right = pattern[i];
-        let rule = find_rule(left, right, rules);
-        if let Some(rule) = rule {
-            result.push(rule.value);
+fn parse_patterns(raw_pattern: String) -> HashMap<String, u64> {
+    let mut patterns = HashMap::new();
+    let chars: Vec<char> = raw_pattern.chars().collect();
+    for i in 1..chars.len() {
+        let pattern_key = format!("{}{}", chars[i - 1], chars[i]);
+        if let Some(pattern) = patterns.get_mut(&pattern_key) {
+           *pattern += 1;
+        } else {
+            patterns.insert(pattern_key, 1);
         }
-        result.push(right);
     }
-    result
+    patterns
+}
+
+fn run_iteration(
+    patterns: HashMap<String, u64>,
+    rules: &Vec<InsertionRule>
+) -> HashMap<String, u64> {
+    let mut new_patterns = HashMap::new();
+    for (pattern, count) in patterns {
+        let rule = find_rule(&pattern, rules);
+        if let Some(existing_count) = new_patterns.get_mut(&rule.to_left) {
+            *existing_count += count;
+        } else {
+            new_patterns.insert(rule.to_left.to_owned(), count);
+        }
+        if let Some(existing_count) = new_patterns.get_mut(&rule.to_right) {
+            *existing_count += count;
+        } else {
+            new_patterns.insert(rule.to_right.to_owned(), count);
+        }
+    }
+    new_patterns
 }
 
 fn main() {
     let stdin = io::stdin();
     let mut lines = stdin.lock().lines();
-    let mut pattern = lines.next().unwrap().unwrap().as_bytes().to_vec();
+    let pattern = lines.next().unwrap().unwrap();
+    let last_char = pattern.chars().last().unwrap();
+    let mut patterns = parse_patterns(pattern);
     lines.next();
     let mut rules = vec![];
     for line in lines {
@@ -83,7 +102,7 @@ fn main() {
     }
     for iteration in 0..40 {
         println!("Running iteration {}", iteration);
-        pattern = run_iteration(pattern, &rules);
+        patterns = run_iteration(patterns, &rules);
     }
-    println!("Result: {}", get_result(pattern));
+    println!("Result: {}", get_result(patterns, last_char));
 }
